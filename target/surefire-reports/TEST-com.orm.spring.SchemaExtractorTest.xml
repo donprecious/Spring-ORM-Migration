@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="com.orm.spring.SchemaExtractorTest" time="0.867" tests="1" errors="1" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="com.orm.spring.SchemaExtractorTest" time="0.995" tests="1" errors="0" skipped="0" failures="1">
   <properties>
     <property name="java.specification.version" value="23"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -14,7 +14,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="NG"/>
     <property name="sun.boot.library.path" value="/opt/homebrew/Cellar/openjdk/23.0.2/libexec/openjdk.jdk/Contents/Home/lib"/>
-    <property name="sun.java.command" value="/Users/donprecious/Desktop/projects/personal-learning/java orm /target/surefire/surefirebooter-20250324012646233_3.jar /Users/donprecious/Desktop/projects/personal-learning/java orm /target/surefire 2025-03-24T01-26-46_180-jvmRun1 surefire-20250324012646233_1tmp surefire_0-20250324012646233_2tmp"/>
+    <property name="sun.java.command" value="/Users/donprecious/Desktop/projects/personal-learning/java orm /target/surefire/surefirebooter-20250324013007115_3.jar /Users/donprecious/Desktop/projects/personal-learning/java orm /target/surefire 2025-03-24T01-30-07_059-jvmRun1 surefire-20250324013007115_1tmp surefire_0-20250324013007115_2tmp"/>
     <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="jdk.debug" value="release"/>
     <property name="test" value="SchemaExtractorTest#shouldIgnoreSystemTables"/>
@@ -32,7 +32,7 @@
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="apple.awt.application.name" value="ForkedBooter"/>
-    <property name="surefire.real.class.path" value="/Users/donprecious/Desktop/projects/personal-learning/java orm /target/surefire/surefirebooter-20250324012646233_3.jar"/>
+    <property name="surefire.real.class.path" value="/Users/donprecious/Desktop/projects/personal-learning/java orm /target/surefire/surefirebooter-20250324013007115_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.runtime.version" value="23.0.2"/>
@@ -61,15 +61,19 @@
     <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.class.version" value="67.0"/>
   </properties>
-  <testcase name="shouldIgnoreSystemTables" classname="com.orm.spring.SchemaExtractorTest" time="0.845">
-    <error message="Cannot invoke &quot;java.sql.ResultSet.next()&quot; because &quot;rs&quot; is null" type="java.lang.NullPointerException"><![CDATA[java.lang.NullPointerException: Cannot invoke "java.sql.ResultSet.next()" because "rs" is null
-	at com.orm.spring.SchemaExtractor.extractColumns(SchemaExtractor.java:73)
-	at com.orm.spring.SchemaExtractor.extractSchema(SchemaExtractor.java:54)
-	at com.orm.spring.SchemaExtractorTest.shouldIgnoreSystemTables(SchemaExtractorTest.java:163)
+  <testcase name="shouldIgnoreSystemTables" classname="com.orm.spring.SchemaExtractorTest" time="0.974">
+    <failure message="expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError"><![CDATA[org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:31)
+	at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:183)
+	at com.orm.spring.SchemaExtractorTest.shouldIgnoreSystemTables(SchemaExtractorTest.java:183)
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1597)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1597)
-]]></error>
+]]></failure>
     <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (/Users/donprecious/.m2/repository/net/bytebuddy/byte-buddy-agent/1.14.12/byte-buddy-agent-1.14.12.jar)
 WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
 WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information

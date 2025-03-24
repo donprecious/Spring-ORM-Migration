@@ -158,6 +158,22 @@ class SchemaExtractorTest {
         lenient().when(tablesRs.next()).thenReturn(true, false);
         lenient().when(tablesRs.getString("TABLE_NAME")).thenReturn("sys_table");
         lenient().when(metaData.getDatabaseProductName()).thenReturn("H2");
+        
+        // Mocking for extractColumns to handle system tables
+        lenient().when(metaData.getColumns(isNull(), isNull(), eq("sys_table"), isNull())).thenReturn(columnsRs);
+        lenient().when(columnsRs.next()).thenReturn(false);
+        
+        // Mocking for extractPrimaryKey to handle system tables
+        lenient().when(metaData.getPrimaryKeys(isNull(), isNull(), eq("sys_table"))).thenReturn(primaryKeysRs);
+        lenient().when(primaryKeysRs.next()).thenReturn(false);
+        
+        // Mocking for extractIndexes to handle system tables
+        lenient().when(metaData.getIndexInfo(isNull(), isNull(), eq("sys_table"), eq(false), eq(false))).thenReturn(indexesRs);
+        lenient().when(indexesRs.next()).thenReturn(false);
+        
+        // Mocking for extractForeignKeys to handle system tables
+        lenient().when(metaData.getImportedKeys(isNull(), isNull(), eq("sys_table"))).thenReturn(foreignKeysRs);
+        lenient().when(foreignKeysRs.next()).thenReturn(false);
 
         // Act
         Schema schema = extractor.extractSchema(dataSource);
