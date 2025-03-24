@@ -136,7 +136,9 @@ public class SchemaExtractor {
         String defaultValue = rs.getString("COLUMN_DEF");
         
         ColumnMetadata metadata = ColumnMetadata.builder()
+                .columnName(columnName)
                 .name(columnName)
+                .fieldName(columnName)
                 .fieldType(getJavaType(dataType))
                 .nullable(nullable == DatabaseMetaData.columnNullable)
                 .length(columnSize)
@@ -199,6 +201,7 @@ public class SchemaExtractor {
                    tableName.startsWith("pg_") ||  // PostgreSQL
                    tableName.startsWith("mysql_") || // MySQL
                    tableName.startsWith("sqlite_") || // SQLite
+                   tableName.startsWith("sys_") ||   // Add lowercase sys_ prefix
                    tableName.equals("schema_history");
         } catch (Exception e) {
             log.warn("Error checking system table: {}", e.getMessage());
