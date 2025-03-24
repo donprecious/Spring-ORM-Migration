@@ -43,21 +43,133 @@ Spring ORM Migration aims to revolutionize database schema management in Java ap
 
 ## 📋 Usage Example
 
+### JPA Entity Example
+
+Here's an example of a JPA entity:
+
+```java
+// Initial version of the User entity
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "username", nullable = false, length = 50)
+    private String username;
+
+    @Column(name = "email", nullable = false)
+    private String email;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    // Getters and setters
+}
+```
+
+After making changes to the entity:
+
+```java
+// Updated version of the User entity
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "username", nullable = false, length = 100) // Changed length from 50 to 100
+    private String username;
+
+    @Column(name = "email", nullable = false)
+    private String email;
+
+    @Column(name = "full_name") // Added new field
+    private String fullName;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at") // Added new field
+    private LocalDateTime updatedAt;
+
+    // Getters and setters
+}
+```
+
+### Generate Migration Command
+
+To generate a migration based on these changes:
+
 ```bash
-# Generate a new migration
-./migrate generate --description "Add user table"
+./migrate generate --description "Update user table structure"
+```
 
-# Apply pending migrations
+### Command Output
+
+```
+$ ./migrate generate --description "Update user table structure"
+
+Analyzing JPA entities...
+Comparing with database schema...
+
+Found 3 changes to 'users' table:
+✓ ALTER COLUMN 'username': Changed length from 50 to 100 [LOW RISK]
+✓ ADD COLUMN 'full_name': VARCHAR(255) [LOW RISK]
+✓ ADD COLUMN 'updated_at': TIMESTAMP [LOW RISK]
+
+Migration script generated successfully:
+/migrations/V1_2_0__Update_user_table_structure.sql
+
+-- Generated SQL Preview:
+ALTER TABLE users MODIFY COLUMN username VARCHAR(100) NOT NULL;
+ALTER TABLE users ADD COLUMN full_name VARCHAR(255);
+ALTER TABLE users ADD COLUMN updated_at TIMESTAMP;
+
+Apply this migration now? [y/N]: n
+Migration saved. Run 'migrate apply' to apply pending migrations.
+```
+
+### Apply Migration Command
+
+```bash
 ./migrate apply
+```
 
+### Apply Command Output
+
+```
+$ ./migrate apply
+
+Found 1 pending migration:
+- V1_2_0__Update_user_table_structure.sql [LOW RISK]
+
+Applying migrations...
+✓ V1_2_0__Update_user_table_structure.sql applied successfully
+
+Summary:
+- 1 migration applied
+- 0 migrations skipped
+- 0 migrations failed
+
+Migration history updated.
+```
+
+### View Migration Status
+
+```bash
 # View migration status
 ./migrate status
 
-# Undo last migration
-./migrate undo
+# Output
+$ ./migrate status
 
-# Revert to a specific version
-./migrate revert --version 1.0.2
+Migration Status:
+✓ V1_0_0__Initial_schema.sql - APPLIED (2025-03-10 14:30:22)
+✓ V1_1_0__Add_role_column_to_users.sql - APPLIED (2025-03-15 09:12:04)
+✓ V1_2_0__Update_user_table_structure.sql - APPLIED (2025-03-24 10:15:33)
 ```
 
 ## 🚧 Development Status
