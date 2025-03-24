@@ -1,0 +1,13 @@
+-------------------------------------------------------------------------------
+Test set: com.orm.spring.SchemaExtractorTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 0.867 s <<< FAILURE! -- in com.orm.spring.SchemaExtractorTest
+com.orm.spring.SchemaExtractorTest.shouldIgnoreSystemTables -- Time elapsed: 0.845 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "java.sql.ResultSet.next()" because "rs" is null
+	at com.orm.spring.SchemaExtractor.extractColumns(SchemaExtractor.java:73)
+	at com.orm.spring.SchemaExtractor.extractSchema(SchemaExtractor.java:54)
+	at com.orm.spring.SchemaExtractorTest.shouldIgnoreSystemTables(SchemaExtractorTest.java:163)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1597)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1597)
+

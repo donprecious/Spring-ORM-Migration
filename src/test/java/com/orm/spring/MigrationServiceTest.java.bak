@@ -1,0 +1,377 @@
+package com.orm.spring;
+
+import com.orm.migration.MigrationGenerator;
+import com.orm.migration.MigrationScript;
+import com.orm.schema.SchemaAnalyzer;
+import com.orm.schema.SchemaChange;
+import com.orm.schema.SchemaComparator;
+import com.orm.schema.TableMetadata;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.InOrder;
+
+import javax.sql.DataSource;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
+import java.sql.SQLException;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class MigrationServiceTest {
+
+    @Mock
+    private SchemaAnalyzer analyzer;
+
+    @Mock
+    private SchemaComparator comparator;
+
+    @Mock
+    private MigrationGenerator generator;
+
+    @Mock
+    private DataSource dataSource;
+
+    @Mock
+    private Connection connection;
+
+    @Mock
+    private Statement statement;
+
+    @Mock
+    private ResultSet resultSet;
+
+    private OrmMigrationProperties properties;
+    private MigrationService service;
+
+    @TempDir
+    Path tempDir;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        properties = new OrmMigrationProperties();
+        properties.setBasePackage("com.example");
+        properties.setScriptLocation(tempDir.toString());
+        properties.setHistoryTable("schema_history");
+        properties.setCreateHistoryTable(true);
+        properties.setAllowDestructive(false);
+        properties.setUseLock(true);
+        properties.setLockTimeout(10);
+        properties.setStatementSeparator(";");
+
+        when(dataSource.getConnection()).thenReturn(connection);
+        when(connection.createStatement()).thenReturn(statement);
+        when(statement.executeQuery(anyString())).thenReturn(resultSet);
+
+        service = new MigrationService(analyzer, comparator, generator, properties, dataSource);
+    }
+
+    @Test
+    void shouldGenerateMigrationWhenChangesDetected() throws Exception {
+        // Arrange
+        List<TableMetadata> currentSchema = List.of(new TableMetadata());
+        List<TableMetadata> targetSchema = List.of(new TableMetadata());
+        List<SchemaChange> changes = List.of(new SchemaChange());
+        Set<Class<?>> entities = Set.of(TestEntity.class);
+
+        MigrationScript expectedScript = new MigrationScript(
+            "V1__test_migration.sql",
+            "CREATE TABLE test;",
+            "DROP TABLE test;",
+            "test migration",
+            LocalDateTime.now()
+        );
+
+        when(analyzer.analyzeEntities(entities)).thenReturn(targetSchema);
+        when(comparator.compareSchemas(currentSchema, targetSchema)).thenReturn(changes);
+        when(generator.generateMigration(changes, "Test Migration")).thenReturn(expectedScript);
+
+        // Act
+        MigrationScript result = service.generateMigration("Test Migration");
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(expectedScript.getFileName(), result.getFileName());
+        assertEquals(expectedScript.getUpSql(), result.getUpSql());
+        assertTrue(Files.exists(tempDir.resolve(result.getFileName())));
+    }
+
+    @Test
+    void shouldNotGenerateMigrationWhenNoChanges() throws Exception {
+        // Arrange
+        List<TableMetadata> currentSchema = List.of(new TableMetadata());
+        List<TableMetadata> targetSchema = List.of(new TableMetadata());
+        List<SchemaChange> changes = List.of();
+
+        when(comparator.compareSchemas(currentSchema, targetSchema)).thenReturn(changes);
+
+        // Act
+        MigrationScript result = service.generateMigration("Test Migration");
+
+        // Assert
+        assertNull(result);
+    }
+
+    @Test
+    void shouldThrowExceptionForDestructiveChangesWhenNotAllowed() {
+        // Arrange
+        List<TableMetadata> currentSchema = List.of(new TableMetadata());
+        List<TableMetadata> targetSchema = List.of(new TableMetadata());
+        SchemaChange destructiveChange = new SchemaChange();
+        destructiveChange.setRequiresWarning(true);
+        List<SchemaChange> changes = List.of(destructiveChange);
+
+        when(comparator.compareSchemas(currentSchema, targetSchema)).thenReturn(changes);
+
+        // Act & Assert
+        assertThrows(IllegalStateException.class, 
+            () -> service.generateMigration("Test Migration"));
+    }
+
+    @Test
+    void shouldApplyPendingMigrations() throws Exception {
+        // Arrange
+        Path scriptPath = tempDir.resolve("V1__test_migration.sql");
+        Files.writeString(scriptPath, "CREATE TABLE test;");
+
+        when(resultSet.next()).thenReturn(false); // No applied migrations
+
+        // Act
+        int applied = service.applyPendingMigrations();
+
+        // Assert
+        assertEquals(1, applied);
+        verify(statement, times(1)).execute("CREATE TABLE test");
+        verify(statement, times(1)).execute(contains("INSERT INTO schema_history"));
+    }
+
+    @Test
+    void shouldValidateSchemaSuccessfully() {
+        // Arrange
+        List<TableMetadata> currentSchema = List.of(new TableMetadata());
+        List<TableMetadata> targetSchema = List.of(new TableMetadata());
+        List<SchemaChange> changes = List.of();
+
+        when(comparator.compareSchemas(currentSchema, targetSchema)).thenReturn(changes);
+
+        // Act
+        boolean isValid = service.validateSchema();
+
+        // Assert
+        assertTrue(isValid);
+    }
+
+    @Test
+    void shouldDetectInvalidSchema() {
+        // Arrange
+        List<TableMetadata> currentSchema = List.of(new TableMetadata());
+        List<TableMetadata> targetSchema = List.of(new TableMetadata());
+        List<SchemaChange> changes = List.of(new SchemaChange());
+
+        when(comparator.compareSchemas(currentSchema, targetSchema)).thenReturn(changes);
+
+        // Act
+        boolean isValid = service.validateSchema();
+
+        // Assert
+        assertFalse(isValid);
+    }
+
+    @Test
+    void shouldHandleLockingWhenApplyingMigrations() throws Exception {
+        // Arrange
+        when(resultSet.next()).thenReturn(true).thenReturn(false);
+        when(resultSet.getInt(1)).thenReturn(1);
+
+        // Act
+        service.applyPendingMigrations();
+
+        // Assert
+        verify(statement).executeQuery(contains("GET_LOCK"));
+        verify(statement).execute(contains("RELEASE_LOCK"));
+    }
+
+    @Test
+    void shouldExecuteHooksWhenApplyingMigrations() throws Exception {
+        // Arrange
+        Path scriptPath = tempDir.resolve("V1__test_migration.sql");
+        Files.writeString(scriptPath, "CREATE TABLE test;");
+
+        properties.setBeforeMigrate("SET FOREIGN_KEY_CHECKS=0;");
+        properties.setAfterMigrate("SET FOREIGN_KEY_CHECKS=1;");
+
+        when(resultSet.next()).thenReturn(false);
+
+        // Act
+        service.applyPendingMigrations();
+
+        // Assert
+        verify(statement).execute("SET FOREIGN_KEY_CHECKS=0");
+        verify(statement).execute("CREATE TABLE test");
+        verify(statement).execute("SET FOREIGN_KEY_CHECKS=1");
+    }
+
+    @Test
+    void shouldCreateHistoryTableIfNotExists() throws Exception {
+        // Act
+        service.applyPendingMigrations();
+
+        // Assert
+        verify(statement).execute(contains("CREATE TABLE IF NOT EXISTS schema_history"));
+    }
+
+    @Test
+    void shouldSkipAppliedMigrations() throws Exception {
+        // Arrange
+        Path scriptPath = tempDir.resolve("V1__test_migration.sql");
+        Files.writeString(scriptPath, "CREATE TABLE test;");
+
+        when(resultSet.next()).thenReturn(true).thenReturn(false);
+        when(resultSet.getString("version")).thenReturn("V1");
+
+        // Act
+        int applied = service.applyPendingMigrations();
+
+        // Assert
+        assertEquals(0, applied);
+        verify(statement, never()).execute("CREATE TABLE test");
+    }
+
+    @Test
+    void shouldHandleSQLExceptionWhenApplyingMigrations() throws Exception {
+        // Arrange
+        Path scriptPath = tempDir.resolve("V1__test_migration.sql");
+        Files.writeString(scriptPath, "CREATE TABLE test;");
+        when(statement.execute(anyString())).thenThrow(new SQLException("Test error"));
+        when(resultSet.next()).thenReturn(false);
+
+        // Act
+        int applied = service.applyPendingMigrations();
+
+        // Assert
+        assertEquals(0, applied);
+        verify(statement).execute("CREATE TABLE test");
+    }
+
+    @Test
+    void shouldHandleIOExceptionWhenReadingMigrationScript() throws Exception {
+        // Arrange
+        Path scriptPath = tempDir.resolve("V1__test_migration.sql");
+        // Don't create the file to simulate IO error
+
+        // Act
+        int applied = service.applyPendingMigrations();
+
+        // Assert
+        assertEquals(0, applied);
+        verify(statement, never()).execute(anyString());
+    }
+
+    @Test
+    void shouldHandleLockAcquisitionFailure() throws Exception {
+        // Arrange
+        Path scriptPath = tempDir.resolve("V1__test_migration.sql");
+        Files.writeString(scriptPath, "CREATE TABLE test;");
+        when(resultSet.next()).thenReturn(true);
+        when(resultSet.getInt(1)).thenReturn(0); // Lock acquisition failed
+
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> service.applyPendingMigrations());
+        verify(statement, never()).execute("CREATE TABLE test");
+    }
+
+    @Test
+    void shouldHandleMultipleMigrationScripts() throws Exception {
+        // Arrange
+        Files.writeString(tempDir.resolve("V1__first_migration.sql"), "CREATE TABLE first;");
+        Files.writeString(tempDir.resolve("V2__second_migration.sql"), "CREATE TABLE second;");
+        when(resultSet.next()).thenReturn(false);
+
+        // Act
+        int applied = service.applyPendingMigrations();
+
+        // Assert
+        assertEquals(2, applied);
+        verify(statement).execute("CREATE TABLE first");
+        verify(statement).execute("CREATE TABLE second");
+    }
+
+    @Test
+    void shouldRespectMigrationOrder() throws Exception {
+        // Arrange
+        Files.writeString(tempDir.resolve("V2__second_migration.sql"), "CREATE TABLE second;");
+        Files.writeString(tempDir.resolve("V1__first_migration.sql"), "CREATE TABLE first;");
+        when(resultSet.next()).thenReturn(false);
+
+        // Act
+        service.applyPendingMigrations();
+
+        // Assert
+        InOrder inOrder = inOrder(statement);
+        inOrder.verify(statement).execute("CREATE TABLE first");
+        inOrder.verify(statement).execute("CREATE TABLE second");
+    }
+
+    @Test
+    void shouldHandleEmptyMigrationScript() throws Exception {
+        // Arrange
+        Files.writeString(tempDir.resolve("V1__empty_migration.sql"), "");
+        when(resultSet.next()).thenReturn(false);
+
+        // Act
+        int applied = service.applyPendingMigrations();
+
+        // Assert
+        assertEquals(0, applied);
+        verify(statement, never()).execute("");
+    }
+
+    @Test
+    void shouldHandleMultipleStatements() throws Exception {
+        // Arrange
+        String multiStatement = "CREATE TABLE test1;\nCREATE TABLE test2;";
+        Files.writeString(tempDir.resolve("V1__multi_statement.sql"), multiStatement);
+        when(resultSet.next()).thenReturn(false);
+
+        // Act
+        service.applyPendingMigrations();
+
+        // Assert
+        verify(statement).execute("CREATE TABLE test1");
+        verify(statement).execute("CREATE TABLE test2");
+    }
+
+    @Test
+    void shouldHandleInvalidMigrationVersion() throws Exception {
+        // Arrange
+        Files.writeString(tempDir.resolve("invalid_migration.sql"), "CREATE TABLE test;");
+        when(resultSet.next()).thenReturn(false);
+
+        // Act
+        int applied = service.applyPendingMigrations();
+
+        // Assert
+        assertEquals(0, applied);
+        verify(statement, never()).execute(anyString());
+    }
+
+    @Entity
+    private static class TestEntity {
+        @Id
+        private Long id;
+    }
+} 
