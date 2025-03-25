@@ -141,7 +141,11 @@ public class DefaultMigrationScriptGenerator implements MigrationScriptGenerator
     }
     
     private String getChangeDescription(SchemaChange change) {
-        return change.getDescription();
+        String description = change.getDescription();
+        if (description != null) {
+            return description.toLowerCase();
+        }
+        return "unknown change";
     }
     
     private String generateVersion() {

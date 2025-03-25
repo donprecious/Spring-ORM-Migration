@@ -22,11 +22,11 @@ public class TableMetadata {
     private String schema;
     private String catalog;
     private String comment;
-    private List<ColumnMetadata> columns;
-    private List<ColumnMetadata> primaryKeyColumns;
-    private List<IndexMetadata> indexes;
-    private List<ForeignKeyMetadata> foreignKeys;
-    private List<RelationshipMetadata> relationships;
+    @Builder.Default private List<ColumnMetadata> columns = new ArrayList<>();
+    @Builder.Default private List<ColumnMetadata> primaryKeyColumns = new ArrayList<>();
+    @Builder.Default private List<IndexMetadata> indexes = new ArrayList<>();
+    @Builder.Default private List<ForeignKeyMetadata> foreignKeys = new ArrayList<>();
+    @Builder.Default private List<RelationshipMetadata> relationships = new ArrayList<>();
 
     public void addColumn(ColumnMetadata column) {
         if (columns == null) {

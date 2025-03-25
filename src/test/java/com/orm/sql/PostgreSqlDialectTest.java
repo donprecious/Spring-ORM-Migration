@@ -59,8 +59,16 @@ class PostgreSqlDialectTest {
 
         // When
         String sql = dialect.createTable(table);
+        System.out.println("Generated PostgreSQL SQL: " + sql);
 
         // Then
+        System.out.println("Contains CREATE TABLE users: " + sql.contains("CREATE TABLE users"));
+        System.out.println("Contains id BIGSERIAL: " + sql.contains("id BIGSERIAL"));
+        System.out.println("Contains name VARCHAR(100) NOT NULL: " + sql.contains("name VARCHAR(100) NOT NULL"));
+        System.out.println("Contains email VARCHAR(255) UNIQUE: " + sql.contains("email VARCHAR(255) UNIQUE"));
+        System.out.println("Contains balance NUMERIC(10,2) DEFAULT 0.00: " + sql.contains("balance NUMERIC(10,2) DEFAULT 0.00"));
+        System.out.println("Contains PRIMARY KEY (id): " + sql.contains("PRIMARY KEY (id)"));
+        
         assertTrue(sql.contains("CREATE TABLE users"));
         assertTrue(sql.contains("id BIGSERIAL"));
         assertTrue(sql.contains("name VARCHAR(100) NOT NULL"));

@@ -142,6 +142,7 @@ class SchemaComparatorTest {
         TableMetadata oldTable = createBasicTable("users");
         TableMetadata newTable = createBasicTable("users");
         
+        // Add foreign key column
         ColumnMetadata fkColumn = new ColumnMetadata();
         fkColumn.setName("department_id");
         fkColumn.setFieldType(Long.class);
@@ -149,6 +150,15 @@ class SchemaComparatorTest {
         fkColumn.setReferencedTable("departments");
         fkColumn.setReferencedColumn("id");
         newTable.addColumn(fkColumn);
+        
+        // Create and add foreign key metadata
+        ForeignKeyMetadata fk = new ForeignKeyMetadata();
+        fk.setConstraintName("fk_department");
+        fk.setColumnName("department_id");
+        fk.setReferencedTable("departments");
+        fk.setReferencedColumn("id");
+        fk.setColumn(fkColumn);
+        newTable.addForeignKey(fk);
         
         oldSchema.addTable(oldTable);
         newSchema.addTable(newTable);

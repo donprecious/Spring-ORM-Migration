@@ -59,6 +59,7 @@ class SqlServerDialectTest {
 
         // When
         String sql = dialect.createTable(table);
+        System.out.println("Generated SQL Server SQL: " + sql);
 
         // Then
         assertTrue(sql.contains("CREATE TABLE users"));

@@ -33,7 +33,10 @@ public class SchemaComparator {
             if (!targetSchema.hasTable(currentTable.getTableName())) {
                 changes.add(SchemaChange.builder()
                         .type(SchemaChangeType.DROP_TABLE)
+                        .changeType(SchemaChange.ChangeType.DROP_TABLE)
                         .table(currentTable)
+                        .objectName(currentTable.getTableName())
+                        .objectType("TABLE")
                         .destructive(true)
                         .dataLoss(true)
                         .build());
@@ -47,7 +50,10 @@ public class SchemaComparator {
             if (currentTableOpt.isEmpty()) {
                 changes.add(SchemaChange.builder()
                         .type(SchemaChangeType.CREATE_TABLE)
+                        .changeType(SchemaChange.ChangeType.CREATE_TABLE)
                         .table(targetTable)
+                        .objectName(targetTable.getTableName())
+                        .objectType("TABLE")
                         .build());
             } else {
                 changes.addAll(compareColumns(currentTableOpt.get(), targetTable));
@@ -67,8 +73,11 @@ public class SchemaComparator {
             if (!targetTable.hasColumn(currentColumn.getName())) {
                 changes.add(SchemaChange.builder()
                         .type(SchemaChangeType.DROP_COLUMN)
+                        .changeType(SchemaChange.ChangeType.DROP_COLUMN)
                         .table(currentTable)
                         .column(currentColumn)
+                        .objectName(currentColumn.getName())
+                        .objectType("COLUMN")
                         .destructive(true)
                         .dataLoss(true)
                         .build());
@@ -82,17 +91,23 @@ public class SchemaComparator {
             if (currentColumnOpt.isEmpty()) {
                 changes.add(SchemaChange.builder()
                         .type(SchemaChangeType.ADD_COLUMN)
+                        .changeType(SchemaChange.ChangeType.ADD_COLUMN)
                         .table(targetTable)
                         .column(targetColumn)
+                        .objectName(targetColumn.getName())
+                        .objectType("COLUMN")
                         .build());
             } else {
                 ColumnMetadata currentColumn = currentColumnOpt.get();
                 if (!columnsEqual(currentColumn, targetColumn)) {
                     changes.add(SchemaChange.builder()
                             .type(SchemaChangeType.MODIFY_COLUMN)
+                            .changeType(SchemaChange.ChangeType.MODIFY_COLUMN)
                             .table(targetTable)
                             .column(currentColumn)
                             .newColumn(targetColumn)
+                            .objectName(currentColumn.getName())
+                            .objectType("COLUMN")
                             .build());
                 }
             }
@@ -109,8 +124,11 @@ public class SchemaComparator {
             if (!targetTable.hasIndex(currentIndex.getName())) {
                 changes.add(SchemaChange.builder()
                         .type(SchemaChangeType.DROP_INDEX)
+                        .changeType(SchemaChange.ChangeType.DROP_INDEX)
                         .table(currentTable)
                         .index(currentIndex)
+                        .objectName(currentIndex.getName())
+                        .objectType("INDEX")
                         .build());
             }
         }
@@ -120,8 +138,11 @@ public class SchemaComparator {
             if (!currentTable.hasIndex(targetIndex.getName())) {
                 changes.add(SchemaChange.builder()
                         .type(SchemaChangeType.CREATE_INDEX)
+                        .changeType(SchemaChange.ChangeType.ADD_INDEX)
                         .table(targetTable)
                         .index(targetIndex)
+                        .objectName(targetIndex.getName())
+                        .objectType("INDEX")
                         .build());
             }
         }
@@ -134,22 +155,28 @@ public class SchemaComparator {
 
         // Find dropped foreign keys
         for (ForeignKeyMetadata currentFk : currentTable.getForeignKeys()) {
-            if (!targetTable.hasForeignKey(currentFk.getConstraintName())) {
+            if (!targetTable.hasForeignKey(currentFk.getName())) {
                 changes.add(SchemaChange.builder()
                         .type(SchemaChangeType.DROP_FOREIGN_KEY)
+                        .changeType(SchemaChange.ChangeType.DROP_FOREIGN_KEY)
                         .table(currentTable)
                         .foreignKey(currentFk)
+                        .objectName(currentFk.getName())
+                        .objectType("FOREIGN_KEY")
                         .build());
             }
         }
 
         // Find new foreign keys
         for (ForeignKeyMetadata targetFk : targetTable.getForeignKeys()) {
-            if (!currentTable.hasForeignKey(targetFk.getConstraintName())) {
+            if (!currentTable.hasForeignKey(targetFk.getName())) {
                 changes.add(SchemaChange.builder()
                         .type(SchemaChangeType.ADD_FOREIGN_KEY)
+                        .changeType(SchemaChange.ChangeType.ADD_FOREIGN_KEY)
                         .table(targetTable)
                         .foreignKey(targetFk)
+                        .objectName(targetFk.getName())
+                        .objectType("FOREIGN_KEY")
                         .build());
             }
         }
@@ -158,8 +185,12 @@ public class SchemaComparator {
     }
 
     private boolean columnsEqual(ColumnMetadata col1, ColumnMetadata col2) {
+        if (col1 == null || col2 == null) {
+            return false;
+        }
+        
         return col1.getName().equals(col2.getName()) &&
-               col1.getFieldType().equals(col2.getFieldType()) &&
+               java.util.Objects.equals(col1.getFieldType(), col2.getFieldType()) &&
                col1.isNullable() == col2.isNullable() &&
                col1.getLength() == col2.getLength() &&
                col1.getPrecision() == col2.getPrecision() &&
@@ -167,6 +198,6 @@ public class SchemaComparator {
                col1.isUnique() == col2.isUnique() &&
                col1.isPrimaryKey() == col2.isPrimaryKey() &&
                col1.isAutoIncrement() == col2.isAutoIncrement() &&
-               col1.getColumnDefinition().equals(col2.getColumnDefinition());
+               java.util.Objects.equals(col1.getColumnDefinition(), col2.getColumnDefinition());
     }
 } 

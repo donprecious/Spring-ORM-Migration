@@ -23,7 +23,7 @@ class SqliteDialectTest {
     }
 
     @Test
-    @DisplayName("Should generate CREATE TABLE statement with various column types")
+    @DisplayName("Should generate proper CREATE TABLE statements")
     void shouldGenerateCreateTable() {
         // Given
         TableMetadata table = new TableMetadata();
@@ -59,6 +59,13 @@ class SqliteDialectTest {
 
         // When
         String sql = dialect.createTable(table);
+        
+        // Debug
+        System.out.println("Generated SQL: " + sql);
+        System.out.println("Contains id: " + sql.contains("id INTEGER PRIMARY KEY AUTOINCREMENT"));
+        System.out.println("Contains name: " + sql.contains("name TEXT NOT NULL"));
+        System.out.println("Contains email: " + sql.contains("email TEXT UNIQUE"));
+        System.out.println("Contains balance: " + sql.contains("balance REAL DEFAULT 0.00"));
 
         // Then
         assertTrue(sql.contains("CREATE TABLE users"));

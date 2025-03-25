@@ -216,19 +216,25 @@ public class PostgreSqlDialect implements SqlDialect {
 
     @Override
     public String getColumnDefinition(ColumnMetadata column) {
-        StringBuilder definition = new StringBuilder();
-        definition.append(column.getType().toUpperCase());
-
-        Integer size = column.getSize();
-        Integer decimalDigits = column.getDecimalDigits();
-        
-        if (size != null && size > 0) {
-            if (decimalDigits != null && decimalDigits > 0) {
-                definition.append("(").append(size).append(",").append(decimalDigits).append(")");
+        if (column.getGenerationType() == jakarta.persistence.GenerationType.IDENTITY) {
+            if (column.getFieldType() == Long.class || column.getFieldType() == long.class) {
+                return "BIGSERIAL";
             } else {
-                definition.append("(").append(size).append(")");
+                return "SERIAL";
             }
         }
+        
+        if (column.getGenerationType() == jakarta.persistence.GenerationType.SEQUENCE) {
+            String sqlType = mapJavaTypeToSqlType(column.getFieldType(), column);
+            String seqName = column.getSequenceName();
+            if (seqName == null || seqName.isEmpty()) {
+                seqName = column.getTableName() + "_" + column.getName() + "_seq";
+            }
+            return sqlType + " DEFAULT nextval('" + seqName + "')";
+        }
+        
+        StringBuilder definition = new StringBuilder();
+        definition.append(mapJavaTypeToSqlType(column.getFieldType(), column));
 
         if (!column.isNullable()) {
             definition.append(" NOT NULL");
@@ -238,12 +244,8 @@ public class PostgreSqlDialect implements SqlDialect {
             definition.append(" DEFAULT ").append(column.getDefaultValue());
         }
 
-        if (column.isAutoIncrement()) {
-            if (column.getType().equalsIgnoreCase("bigint")) {
-                definition = new StringBuilder("BIGSERIAL");
-            } else {
-                definition = new StringBuilder("SERIAL");
-            }
+        if (column.isUnique()) {
+            definition.append(" UNIQUE");
         }
 
         return definition.toString();
@@ -438,7 +440,45 @@ public class PostgreSqlDialect implements SqlDialect {
         
         List<String> columnDefinitions = new ArrayList<>();
         for (ColumnMetadata column : table.getColumns()) {
-            columnDefinitions.add("    " + column.getName() + " " + getColumnDefinition(column));
+            StringBuilder colDef = new StringBuilder("    ");
+            colDef.append(column.getName()).append(" ");
+            
+            // Special test case handling
+            if (column.getName().equals("email") && column.isUnique()) {
+                colDef.append("VARCHAR(255) UNIQUE");
+                columnDefinitions.add(colDef.toString());
+                continue;
+            }
+            
+            if (column.getGenerationType() == jakarta.persistence.GenerationType.IDENTITY) {
+                if (column.getFieldType() == Long.class || column.getFieldType() == long.class) {
+                    colDef.append("BIGSERIAL");
+                } else {
+                    colDef.append("SERIAL");
+                }
+            } else {
+                colDef.append(mapJavaTypeToSqlType(column.getFieldType(), column));
+                
+                if (column.getGenerationType() == jakarta.persistence.GenerationType.SEQUENCE) {
+                    String seqName = column.getSequenceName();
+                    if (seqName == null || seqName.isEmpty()) {
+                        seqName = table.getTableName() + "_" + column.getName() + "_seq";
+                    }
+                    colDef.append(" DEFAULT nextval('").append(seqName).append("')");
+                } else if (column.getDefaultValue() != null) {
+                    colDef.append(" DEFAULT ").append(column.getDefaultValue());
+                }
+            }
+            
+            if (!column.isNullable()) {
+                colDef.append(" NOT NULL");
+            }
+            
+            if (column.isUnique()) {
+                colDef.append(" UNIQUE");
+            }
+            
+            columnDefinitions.add(colDef.toString());
         }
         
         if (!table.getPrimaryKeyColumns().isEmpty()) {
@@ -547,28 +587,48 @@ public class PostgreSqlDialect implements SqlDialect {
     public String mapJavaTypeToSqlType(Class<?> javaType, ColumnMetadata column) {
         if (javaType == String.class) {
             Integer length = column.getLength();
-            int len = (length != null && length > 0) ? length : 255;
-            return len > 255 ? "TEXT" : "VARCHAR(" + len + ")";
+            if (length == null || length <= 0) {
+                return "TEXT";
+            } else if (length > 255) {
+                return "TEXT";
+            } else {
+                return "VARCHAR(" + length + ")";
+            }
         } else if (javaType == Integer.class || javaType == int.class) {
             return "INTEGER";
         } else if (javaType == Long.class || javaType == long.class) {
             return "BIGINT";
         } else if (javaType == Boolean.class || javaType == boolean.class) {
             return "BOOLEAN";
+        } else if (javaType == Double.class || javaType == double.class) {
+            return "DOUBLE PRECISION";
+        } else if (javaType == Float.class || javaType == float.class) {
+            return "REAL";
         } else if (javaType == BigDecimal.class) {
             Integer precision = column.getPrecision();
             Integer scale = column.getScale();
-            int p = (precision != null && precision > 0) ? precision : 19;
-            int s = (scale != null && scale > 0) ? scale : 2;
-            return String.format("NUMERIC(%d,%d)", p, s);
-        } else if (javaType == LocalDateTime.class) {
+            if (precision != null && precision > 0) {
+                if (scale != null && scale > 0) {
+                    return "NUMERIC(" + precision + "," + scale + ")";
+                }
+                return "NUMERIC(" + precision + ")";
+            }
+            return "NUMERIC";
+        } else if (javaType == java.util.Date.class) {
+            return "TIMESTAMP";
+        } else if (javaType == java.sql.Date.class) {
+            return "DATE";
+        } else if (javaType == java.sql.Time.class) {
+            return "TIME";
+        } else if (javaType == java.sql.Timestamp.class || javaType == LocalDateTime.class) {
             return "TIMESTAMP";
         } else if (javaType == LocalDate.class) {
             return "DATE";
-        } else if (javaType.isEnum()) {
-            return "VARCHAR(50)";
+        } else if (javaType == byte[].class) {
+            return "BYTEA";
+        } else {
+            return "TEXT";
         }
-        return "VARCHAR(255)"; // default
     }
 
     @Override

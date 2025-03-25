@@ -2,6 +2,7 @@ package com.orm.cli;
 
 import com.orm.migration.MigrationScript;
 import com.orm.spring.MigrationService;
+import com.orm.schema.diff.SchemaChange;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,7 +20,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -57,13 +60,13 @@ class MigrationCliTest {
             "test migration",
             LocalDateTime.now()
         );
-        when(migrationService.generateMigration(anyString())).thenReturn(script);
+        when(migrationService.generateMigration(eq("test migration"), any())).thenReturn(script);
 
         // Act
         cli.run("migrate", "generate", "-d", "test migration");
 
         // Assert
-        verify(migrationService).generateMigration("test migration");
+        verify(migrationService).generateMigration(eq("test migration"), any());
         assertEquals(0, cli.getExitCode());
         assertTrue(outContent.toString().contains("Generated migration"));
         assertTrue(outContent.toString().contains(script.getFileName()));
@@ -79,7 +82,7 @@ class MigrationCliTest {
             "test migration",
             LocalDateTime.now()
         );
-        when(migrationService.generateMigration(anyString())).thenReturn(script);
+        when(migrationService.generateMigration(eq("test migration"), any())).thenReturn(script);
 
         // Act
         cli.run("migrate", "generate", "-d", "test migration", "-v");
@@ -93,7 +96,7 @@ class MigrationCliTest {
     @Test
     void shouldHandleGenerationFailure() {
         // Arrange
-        when(migrationService.generateMigration(anyString()))
+        when(migrationService.generateMigration(anyString(), any()))
             .thenThrow(new RuntimeException("Test error"));
 
         // Act
@@ -107,7 +110,11 @@ class MigrationCliTest {
     @Test
     void shouldApplyMigrations() {
         // Arrange
-        when(migrationService.applyPendingMigrations()).thenReturn(2);
+        List<MigrationScript> appliedMigrations = List.of(
+            new MigrationScript("V1__test.sql", "SQL", null, "Test", LocalDateTime.now()),
+            new MigrationScript("V2__test2.sql", "SQL2", null, "Test2", LocalDateTime.now())
+        );
+        when(migrationService.applyPendingMigrations()).thenReturn(appliedMigrations);
 
         // Act
         cli.run("migrate", "apply");
@@ -121,7 +128,7 @@ class MigrationCliTest {
     @Test
     void shouldShowNoMigrationsToApply() {
         // Arrange
-        when(migrationService.applyPendingMigrations()).thenReturn(0);
+        when(migrationService.applyPendingMigrations()).thenReturn(Collections.emptyList());
 
         // Act
         cli.run("migrate", "apply");
@@ -148,7 +155,8 @@ class MigrationCliTest {
     @Test
     void shouldShowStatus() {
         // Arrange
-        when(migrationService.validateSchema()).thenReturn(true);
+        List<SchemaChange> changes = Collections.emptyList();
+        when(migrationService.validateSchema()).thenReturn(changes);
 
         // Act
         cli.run("migrate", "status");
@@ -202,7 +210,7 @@ class MigrationCliTest {
 
         // Assert
         assertEquals(2, cli.getExitCode());
-        verify(migrationService, never()).generateMigration(anyString());
+        verify(migrationService, never()).generateMigration(anyString(), any());
     }
 
     @Test

@@ -59,6 +59,7 @@ class OracleDialectTest {
 
         // When
         String sql = dialect.createTable(table);
+        System.out.println("Generated Oracle SQL: " + sql);
 
         // Then
         assertTrue(sql.contains("CREATE TABLE users"));
